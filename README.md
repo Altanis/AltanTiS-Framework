@@ -31,7 +31,8 @@ client.on('message', async message => {
 
     client.initCommand('say', () => {
         const argument = args.join(' ') || '** **';
-        message.delete()
+        message.delete();
+        message.channel.send(argument);
     });
 });
 
