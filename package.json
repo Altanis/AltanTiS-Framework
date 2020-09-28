@@ -1,5 +1,5 @@
 {
-  "name": "a",
+  "name": "altantis-framework",
   "version": "1.0.0",
   "description": "A sweet and simple framework to utilize Discord.js easier.",
   "main": "lib/index.js",
