@@ -4,36 +4,27 @@ Under construction, install at your own risk 😔.
 
 Usage:
 ```js
-const { ExtendedClient } = require('discord.js');
+const { ExtendedClient } = require('altantis-framework');
+
 const client = new ExtendedClient({
-    token: 'valid-token',
-    prefix: '??',
-    ownerID: '4748939589039040',
+    token: 'NzU0NzQwNDc2NzUzNzM5Nzk2.X15I2A.Kiq4AR9KuJDzkrDn3UT0SYlzofM',
+    prefix: '?',
 });
 
 client.once('ready', () => {
     console.log('[META][INFO]: Bot initialized.');
-});
 
-client.on('error', console.error);
-
-client.on('commandCreate', async (commandName, commandCallback) => {
-    console.log(`Command ${commandName} has been loaded.`);
-
-    // You can even get the command outside of the commandCreate event too!
-    console.log(client.commands.get(commandName)); // returns commandCallback
-});
-
-client.on('message', async message => {
-    if (message.author.bot || !message.content.startsWith(client.prefix)) return;
-
-    const args = message.content.split(' ').slice(1);
-
-    client.initCommand('say', () => {
+    client.initCommand('say', async (message, args) => {
         const argument = args.join(' ') || '** **';
         message.delete();
         message.channel.send(argument);
     });
+});
+ 
+client.on('error', console.error);
+ 
+client.on('commandCreate', async (commandName, _commandCallback) => {
+    console.log(`Command ${commandName} has been loaded.`);
 });
 
 client.authorize();

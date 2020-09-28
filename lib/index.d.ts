@@ -18,7 +18,13 @@ export declare class ExtendedClient extends Client {
     * @param callback - How the command runs when it's called.
     */
     initCommand(commandName: string, callback: CommandCallback): void;
+    /**
+     * Get the names of every registered commmand.
+     */
     get registeredCommands(): string[];
+    /**
+     * Connects the WebSocket to the client.
+     */
     authorize(): void;
 }
 export {};
