@@ -1,6 +1,6 @@
 import { Client, ClientOptions, Collection, Message, PartialMessage } from 'discord.js';
 import * as _colors from 'colors';
-import * as moment from 'moment';
+import moment from 'moment';
 
 type CommandCallback = () => void;
 
