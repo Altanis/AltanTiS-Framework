@@ -7,7 +7,7 @@ Usage:
 const { ExtendedClient } = require('altantis-framework');
 
 const client = new ExtendedClient({
-    token: 'NzU0NzQwNDc2NzUzNzM5Nzk2.X15I2A.Kiq4AR9KuJDzkrDn3UT0SYlzofM',
+    token: 'token',
     prefix: '?',
 });
 
