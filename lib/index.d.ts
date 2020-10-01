@@ -1,23 +1,41 @@
-import { Client, ClientOptions, Collection, Message, PartialMessage } from 'discord.js';
-declare type CommandCallback = () => void;
+import { Client, ClientOptions, Collection, Message, PartialMessage, BitFieldResolvable, PermissionString } from 'discord.js';
+declare type CommandCallback = (message: Message, args: string[]) => void;
 interface ExtendedOptions extends ClientOptions {
     token: string;
     prefix: string;
-    ownerID?: string;
+    ownerIDS?: string[];
+}
+interface CommandOptions {
+    ownerOnly?: boolean;
+    requiresPermissions?: Array<BitFieldResolvable<PermissionString>>;
+    aliases?: string[];
+    category?: string;
+    description?: string;
+    usage?: string;
+}
+interface CommandObject {
+    ownerOnly?: boolean;
+    requiresPermissions?: Array<BitFieldResolvable<PermissionString>>;
+    aliases?: string[];
+    category?: string;
+    description?: string;
+    usage?: string;
+    run: CommandCallback;
 }
 export declare class ExtendedClient extends Client {
     token: string;
     prefix: string;
-    ownerID: string | null;
-    commands: Map<string, CommandCallback>;
+    ownerIDS: string[] | null;
+    commands: Map<string, CommandObject>;
     deletedMessages: Collection<string, Message | PartialMessage>;
     constructor(options: ExtendedOptions);
     /**
     * Initialize a command.
     * @param commandName - The name for the command being created.
     * @param callback - How the command runs when it's called.
+    * @param options - The options for the command.
     */
-    initCommand(commandName: string, callback: CommandCallback): void;
+    initCommand(commandName: string, callback: CommandCallback, options?: CommandOptions): void;
     /**
      * Get the names of every registered commmand.
      */
@@ -28,4 +46,4 @@ export declare class ExtendedClient extends Client {
     authorize(): void;
 }
 export {};
-//# sourceMappingURL=bot.d.ts.map
+//# sourceMappingURL=index.d.ts.map
