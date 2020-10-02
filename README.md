@@ -26,8 +26,6 @@ client.once('ready', () => {
         description: 'Speak as bot', // Default: ''
         usage: '>say {message}' // Default: ''
     });
-
-    client.commands.find('ping')
 });
 
 client.on('commandCreate', (command, callback) => {
