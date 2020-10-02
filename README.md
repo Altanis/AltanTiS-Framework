@@ -4,7 +4,7 @@ Under construction, install at your own risk 😔.
 
 Usage:
 ```js
-const { ExtendedClient } = require('./lib/index');
+const { ExtendedClient } = require('altantis-framework');
 
 const client = new ExtendedClient({
     token: 'token',
