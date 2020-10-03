@@ -9,6 +9,7 @@ import { Logger } from './logger';
 const log = new Logger();
 
 type CommandCallback = (message: Message, args: string[]) => void;
+type SendCallback = (message: Message, args: string[]) => void;
 
 interface ExtendedOptions extends ClientOptions {
 	token: string;
@@ -16,9 +17,14 @@ interface ExtendedOptions extends ClientOptions {
 	ownerIDS?: string[];
 }
 
+interface PermissionsObject {
+	permissions: Array<BitFieldResolvable<PermissionString>>;
+	send?: SendCallback;
+}
+
 interface CommandOptions {
 	ownerOnly?: boolean;
-	requiresPermissions?: Array<BitFieldResolvable<PermissionString>>;
+	requiresPermissions?: PermissionsObject;
 	aliases?: string[];
 	category?: string;
 	description?: string;
@@ -27,7 +33,7 @@ interface CommandOptions {
 
 interface CommandObject {
 	ownerOnly?: boolean;
-	requiresPermissions?: Array<BitFieldResolvable<PermissionString>>;
+	requiresPermissions?: PermissionsObject;
 	aliases?: string[];
 	category?: string;
 	description?: string;
@@ -44,11 +50,31 @@ declare module 'discord.js' {
 }
 
 export class ExtendedClient extends Client {
+	/**
+	 * The token of the client.
+	 */
 	public token: string;
+
+	/**
+	 * The prefix of the client.
+	 */
 	public prefix: string;
+
+	/**
+	 * The array of owner IDs.
+	 */
+
 	public ownerIDS: string[]|null;
+
+	/**
+	 * A collection of CommandObjects mapped by their name.
+	 */
+
 	public commands: Collection<string, CommandObject>;
-	public events: Collection<string, any>;
+
+	/**
+	 * A collection of deleted messages mapped by their ID.
+	 */
 	public deletedMessages: Collection<string, Message | PartialMessage>;
 	
 	constructor(options: ExtendedOptions) {
@@ -56,7 +82,6 @@ export class ExtendedClient extends Client {
 		
 		this.deletedMessages = new Collection();
 		this.commands = new Collection();
-		this.events = new Collection();
 		this.token = options.token;
 		this.prefix = options.prefix;
 		this.ownerIDS = options.ownerIDS ? options.ownerIDS : null;
@@ -77,7 +102,7 @@ export class ExtendedClient extends Client {
 			
 			const args: string[] = message.content.slice(this.prefix.length).trim().split(/ +/g);
 			const cmd: string | undefined = args.shift()?.toLowerCase();
-			
+
 			for (const [key, value] of this.commands) {
 				if (cmd === key) {
 					if (value) {
@@ -87,21 +112,22 @@ export class ExtendedClient extends Client {
 							value.run(message, args);
 						}
 						
-						if (value.requiresPermissions && value.requiresPermissions[0]) {
+						if (value.requiresPermissions && value.requiresPermissions.permissions[0]) {
 							let passable: boolean | undefined = undefined;
-							
-							value.requiresPermissions.map(id => {
+
+							value.requiresPermissions.permissions.map(id => {
 								if (passable) return;
 								if (message.member?.permissions.has(id) == false) passable = false;
 								else passable = true;
 							});
 							
-							if (!passable) return;
+							if (!passable && value.requiresPermissions.send) return value.requiresPermissions.send(message, args);
+							if (!passable && !value.requiresPermissions.send) return;
 
 							value.run(message, args);
 						}
 
-						if (!value.ownerOnly && ( !value.requiresPermissions?.length || !value.requiresPermissions) ) {
+						if (!value.ownerOnly && ( !value.requiresPermissions?.permissions.length || !value.requiresPermissions) ) {
 							value.run(message, args);
 						}
 					}
@@ -118,21 +144,22 @@ export class ExtendedClient extends Client {
 								value.run(message, args);
 							}
 							
-							if (value.requiresPermissions && value.requiresPermissions[0]) {
+							if (value.requiresPermissions && value.requiresPermissions.permissions[0]) {
 								let passable: boolean | undefined = undefined;
 								
-								value.requiresPermissions.map(id => {
+								value.requiresPermissions.permissions.map(id => {
 									if (passable) return;
 									if (message.member?.permissions.has(id) == false) passable = false;
 									else passable = true;
 								});
 								
-								if (!passable) return;
+								if (!passable && value.requiresPermissions.send) return value.requiresPermissions.send(message, args);
+								if (!passable && !value.requiresPermissions.send) return;
 	
 								value.run(message, args);
 							}
 	
-							if (!value.ownerOnly && ( !value.requiresPermissions?.length || !value.requiresPermissions) ) {
+							if (!value.ownerOnly && ( !value.requiresPermissions?.permissions.length || !value.requiresPermissions) ) {
 								value.run(message, args);
 							}
 						}
@@ -140,6 +167,26 @@ export class ExtendedClient extends Client {
 				}
 			}
 		});
+	}
+
+	/**
+	 * Convert a permission node to a name of a permission on Discord.
+	 * @param permissionNode - The permission node to convert to a more user-friendly permission name.
+	 */
+
+	nodeToName(permissionNode: string) {
+		if (permissionNode == 'MANAGE_GUILD') return 'Manage Server';
+
+		let split = permissionNode.split('_');
+		let str = '';
+
+		split.map(element => {
+			const reformed = `${element.charAt(0).toUpperCase()}${element.slice(1).toLowerCase()} `;
+
+			str += reformed;
+		});
+
+		return str;
 	}
 
 	/**
