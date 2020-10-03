@@ -39,7 +39,6 @@ client.once('ready', () => {
     // So on, so forth.
 });
 
-client.registeredCommands
 client.on('commandCreate', (command, callback) => {
     console.log(`Command ${command} has loaded!`);
 });
