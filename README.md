@@ -4,7 +4,7 @@ Under construction, install at your own risk 😔.
 
 Usage:
 ```js
-const { ExtendedClient } = require('./lib/index');
+const { ExtendedClient } = require('altantis-framework');
 
 const client = new ExtendedClient({
     token: 'token',
@@ -26,8 +26,6 @@ client.once('ready', () => {
         description: 'Speak as bot', // Default: ''
         usage: '>say {message}' // Default: ''
     });
-
-    client.commands.find('ping')
 });
 
 client.on('commandCreate', (command, callback) => {
