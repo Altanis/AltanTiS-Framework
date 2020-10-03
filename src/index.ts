@@ -1,8 +1,12 @@
-import { Client, ClientOptions, Collection, Message, PartialMessage, BitFieldResolvable, PermissionString } from 'discord.js';
+import { Client, ClientOptions, Collection, Message, PartialMessage, BitFieldResolvable, PermissionString, MessageEmbed, TextChannel, DMChannel } from 'discord.js';
 import * as colors from 'colors';
 import moment from 'moment';
 
 colors; // To compile the TSC file without manually needing to reimport colors in the compiled file.
+
+import { Logger } from './logger'; 
+
+const log = new Logger();
 
 type CommandCallback = (message: Message, args: string[]) => void;
 
@@ -33,46 +37,37 @@ interface CommandObject {
 
 let alreadyEmitted: string[] = [];
 
+declare module 'discord.js' {
+	interface ClientEvents {
+		commandCreate: [ string, CommandCallback ];
+	}
+}
 
 export class ExtendedClient extends Client {
 	public token: string;
 	public prefix: string;
 	public ownerIDS: string[]|null;
-	public commands: Map<string, CommandObject>;
+	public commands: Collection<string, CommandObject>;
+	public events: Collection<string, any>;
 	public deletedMessages: Collection<string, Message | PartialMessage>;
 	
 	constructor(options: ExtendedOptions) {
 		super();
 		
-		/**
-		 * All deleted messages mapped by their ID.
-		 */
 		this.deletedMessages = new Collection();
-		/**
-		 * An object containing their run function and properties mapped by their name.
-		 */
 		this.commands = new Collection();
-		
-		/**
-		 * The token of the bot.
-		 */
+		this.events = new Collection();
 		this.token = options.token;
-		/**
-		 * The prefix the bot replies to.
-		 */
 		this.prefix = options.prefix;
-		/**
-		 * The ID the bot replies to for owner commands.
-		 */
 		this.ownerIDS = options.ownerIDS ? options.ownerIDS : null;
 
-		if (!this.prefix) throw new Error('No prefix was provided into the client options.');
-		if (!this.token) throw new Error('No token was provided into the client options.');
+		if (!this.prefix) log.severe('No prefix was provided into the client options.', { throw: true });
+		if (!this.token) log.severe('No token was provided into the client options.', { throw: true });
 		
 		this.once('ready', () => {
-			if (this.user && !this.user.bot) throw new Error('AltaFramework does not support user bots. Please retry with a bot token.');
+			if (this.user && !this.user.bot) return log.severe('AltaFramework does not support user bots. Please retry with a bot token.', { throw: true });
 			/* tslint:disable:no-console */
-			console.log(`${moment().format('MM/DD/YYYY hh:mm:ss a').toUpperCase().bold}: AltaFramework has successfully loaded.`.green);
+			log.success('AltaFramework has successfully loaded.');
 		});
 		
 		this.on('messageDelete', (message) => this.deletedMessages.set(message.id, message));

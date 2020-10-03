@@ -22,11 +22,17 @@ interface CommandObject {
     usage?: string;
     run: CommandCallback;
 }
+declare module 'discord.js' {
+    interface ClientEvents {
+        commandCreate: [string, CommandCallback];
+    }
+}
 export declare class ExtendedClient extends Client {
     token: string;
     prefix: string;
     ownerIDS: string[] | null;
-    commands: Map<string, CommandObject>;
+    commands: Collection<string, CommandObject>;
+    events: Collection<string, any>;
     deletedMessages: Collection<string, Message | PartialMessage>;
     constructor(options: ExtendedOptions);
     /**
