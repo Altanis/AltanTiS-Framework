@@ -1,6 +1,7 @@
 import { Client, ClientOptions, Collection, Message, PartialMessage, BitFieldResolvable, PermissionString, MessageEmbed, TextChannel, DMChannel } from 'discord.js';
 import * as colors from 'colors';
-import moment from 'moment';
+import appRoot from 'app-root-path';
+import fs from 'fs-extra';
 
 colors; // To compile the TSC file without manually needing to reimport colors in the compiled file.
 
@@ -197,34 +198,45 @@ export class ExtendedClient extends Client {
 	*/
 	
 	public initCommand(commandName: string, callback: CommandCallback, options?: CommandOptions): void {
-		const curObject = {
-			ownerOnly: options?.ownerOnly,
-			requiresPermissions: options?.requiresPermissions,
-			aliases: options?.aliases,
-			category: options?.category,
-			description: options?.description,
-			usage: options?.usage,
-			run: callback,
-		};
+		if (!fs.existsSync(`${appRoot}/${commandName}`) && typeof require(`${appRoot}/${commandName}`) !== 'object') {
+			const curObject = {
+				ownerOnly: options?.ownerOnly,
+				requiresPermissions: options?.requiresPermissions,
+				aliases: options?.aliases,
+				category: options?.category,
+				description: options?.description,
+				usage: options?.usage,
+				run: callback,
+			};
 
-		if (typeof curObject.ownerOnly == 'undefined') {
-			delete curObject.ownerOnly;
-		} else if (typeof curObject.requiresPermissions == 'undefined') {
-			delete curObject.requiresPermissions;
-		} else if (typeof curObject.aliases == 'undefined') {
-			delete curObject.aliases;
-		} else if (typeof curObject.category == 'undefined') {
-			delete curObject.category;
-		} else if (typeof curObject.description == 'undefined') {
-			delete curObject.description;
-		} else if (typeof curObject.usage == 'undefined') {
-			delete curObject.usage;
+			if (typeof curObject.ownerOnly == 'undefined') {
+				delete curObject.ownerOnly;
+			} else if (typeof curObject.requiresPermissions == 'undefined') {
+				delete curObject.requiresPermissions;
+			} else if (typeof curObject.aliases == 'undefined') {
+				delete curObject.aliases;
+			} else if (typeof curObject.category == 'undefined') {
+				delete curObject.category;
+			} else if (typeof curObject.description == 'undefined') {
+				delete curObject.description;
+			} else if (typeof curObject.usage == 'undefined') {
+				delete curObject.usage;
+			}
+			
+
+			this.commands.set(commandName, curObject);
+			if (alreadyEmitted.includes(commandName)) return;
+			this.emit('commandCreate', commandName, callback);
+			alreadyEmitted.push(commandName);
+		} else {
+			const props = require(`${appRoot}/${commandName}`);
+			const cmdName = commandName.replace(appRoot.toString(), '').replace('./', '').split('.')[0];
+			
+			this.commands.set(cmdName, props);
+			if (alreadyEmitted.includes(cmdName)) return;
+			this.emit('commandCreate', cmdName, callback);
+			alreadyEmitted.push(cmdName);
 		}
-
-		this.commands.set(commandName, curObject);
-		if (alreadyEmitted.includes(commandName)) return;
-		this.emit('commandCreate', commandName, callback);
-		alreadyEmitted.push(commandName);
 	}
 	
     /**

@@ -3,11 +3,13 @@
 Under construction, install at your own risk 😔.
 
 Usage:
+
+## Option 1:
 ```js
-const { ExtendedClient } = require('./lib/index');
+const { ExtendedClient } = require('altantis-framework');
 
 const client = new ExtendedClient({
-    token: 'NTMxOTg3MTI2MTcxMDc0NTcx.XDPpng.0CFU7cpPDU9K9x9qqqh29ZBDjp4',
+    token: 'very-valid-token',
     prefix: '?',
     ownerIDS: ['515282559861653505']
 });
@@ -39,9 +41,47 @@ client.once('ready', () => {
     // So on, so forth.
 });
 
-client.on('commandCreate', (command, callback) => {
+client.on('commandCreate', (command, _callback) => {
     console.log(`Command ${command} has loaded!`);
 });
 
 client.authorize();
+```
+
+## Option 2:
+
+```js
+// index.js
+const { ExtendedClient } = require('altantis-framework');
+
+const client = new ExtendedClient({
+    token: 'very-valid-token',
+    prefix: '?',
+    ownerIDS: ['515282559861653505']
+});
+
+client.once('ready', () => {
+    console.log('Ready!');
+
+    client.initCommand('./say');
+});
+
+client.on('commandCreate', (command, _callback) => {
+    console.log(`Command ${command} has loaded!`);
+});
+
+client.authorize();
+
+// say.js
+module.exports = {
+    requiresPermissions: {
+        permissions: ['MANAGE_MESSAGES'],
+        send: (message, _args) => message.channel.send('You do not have the permission `Manage Messages`.'),
+    },
+    aliases: ['speak', 'echo'],
+    run: (message, args) => {
+        message.delete();
+        message.channel.send(args.join(' ') || '** **');
+    },
+};
 ```
