@@ -169,6 +169,10 @@ export class ExtendedClient extends Client {
 			}
 		});
 	}
+	
+	async delay(delay: number): Promise<void> {
+		return new Promise((res, rej) => setTimeout(res, delay));
+	}
 
 	/**
 	 * Convert a permission node to a name of a permission on Discord.

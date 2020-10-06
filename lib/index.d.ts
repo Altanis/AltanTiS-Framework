@@ -54,6 +54,7 @@ export declare class ExtendedClient extends Client {
      */
     deletedMessages: Collection<string, Message | PartialMessage>;
     constructor(options: ExtendedOptions);
+    delay(delay: number): Promise<void>;
     /**
      * Convert a permission node to a name of a permission on Discord.
      * @param permissionNode - The permission node to convert to a more user-friendly permission name.
