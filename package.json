@@ -1,6 +1,6 @@
 {
   "name": "altantis-framework",
-  "version": "1.6.2",
+  "version": "1.7.2",
   "description": "A sweet and simple framework to utilize Discord.js easier.",
   "main": "lib/index.js",
   "types": "lib",
