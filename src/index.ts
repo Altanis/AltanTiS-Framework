@@ -2,6 +2,7 @@ import { Client, ClientOptions, Collection, Message, PartialMessage, BitFieldRes
 import * as colors from 'colors';
 import appRoot from 'app-root-path';
 import fs from 'fs-extra';
+import prettyms from 'pretty-ms';
 
 colors; // To compile the TSC file without manually needing to reimport colors in the compiled file.
 
@@ -11,6 +12,7 @@ const log = new Logger();
 
 type CommandCallback = (message: Message, args: string[]) => void;
 type SendCallback = (message: Message, args: string[]) => void;
+type CooldownSendCallback = (message: Message, args: string[], time: string) => void;
 
 interface ExtendedOptions extends ClientOptions {
 	token: string;
@@ -18,10 +20,17 @@ interface ExtendedOptions extends ClientOptions {
 	ownerIDS?: string[];
 }
 
+
+interface CooldownObject {
+	cooldown: number;
+	send?: CooldownSendCallback;
+}
+
 interface PermissionsObject {
 	permissions: Array<BitFieldResolvable<PermissionString>>;
 	send?: SendCallback;
 }
+
 
 interface CommandOptions {
 	ownerOnly?: boolean;
@@ -30,6 +39,8 @@ interface CommandOptions {
 	category?: string;
 	description?: string;
 	usage?: string;
+	restrictBot?: boolean;
+	cooldown?: CooldownObject;
 }
 
 interface CommandObject {
@@ -39,8 +50,11 @@ interface CommandObject {
 	category?: string;
 	description?: string;
 	usage?: string;
+	restrictBot?: boolean;
+	cooldown?: CooldownObject;
 	run: CommandCallback;
 };
+
 
 let alreadyEmitted: string[] = [];
 
@@ -74,6 +88,11 @@ export class ExtendedClient extends Client {
 	public commands: Collection<string, CommandObject>;
 
 	/**
+	 * 
+	 */
+	public cooldown: Map<string, { [key: string]: { currentCooldown: number, baseCooldown: number } }>;
+
+	/**
 	 * A collection of deleted messages mapped by their ID.
 	 */
 	public deletedMessages: Collection<string, Message | PartialMessage>;
@@ -86,6 +105,7 @@ export class ExtendedClient extends Client {
 		this.token = options.token;
 		this.prefix = options.prefix;
 		this.ownerIDS = options.ownerIDS ? options.ownerIDS : null;
+		this.cooldown = new Map();
 
 		if (!this.prefix) log.severe('No prefix was provided into the client options.', { throw: true });
 		if (!this.token) log.severe('No token was provided into the client options.', { throw: true });
@@ -94,12 +114,50 @@ export class ExtendedClient extends Client {
 			if (this.user && !this.user.bot) return log.severe('AltaFramework does not support user bots. Please retry with a bot token.', { throw: true });
 			/* tslint:disable:no-console */
 			log.success('AltaFramework has successfully loaded.');
+
+			this.setInterval(() => {
+				if (!this.cooldown.size) {
+					let object: { [key: string]: { currentCooldown: number, baseCooldown: number } } = {};
+
+					this.guilds.cache.forEach(guild => {
+						for (let [key, value] of this.commands) {
+							object[key] = {
+								currentCooldown: 0,
+								baseCooldown: value.cooldown?.cooldown ? value.cooldown.cooldown : 0,
+							};
+						}
+
+						this.cooldown.set(guild.id, object);
+					});
+				}
+
+				for (let [k, value] of this.cooldown) {
+					const keys = Object.keys(value);
+
+					keys.map(key => {
+						let { currentCooldown, baseCooldown } = value[key];
+
+						if (baseCooldown <= 150) return log.severe('Sorry, but cooldowns must be above 150 milliseconds for AltaFramework to process it. You inputted ' + baseCooldown + ' milliseconds.', { throw: false });
+
+						if (currentCooldown !== 0) {
+								let newCooldown = currentCooldown - 1000;
+
+								value[key] = {
+									currentCooldown: newCooldown,
+									baseCooldown: baseCooldown,
+								};
+	
+								this.cooldown.set(k, value);
+						}
+					});
+				}
+			}, 1000);
 		});
 		
 		this.on('messageDelete', (message) => this.deletedMessages.set(message.id, message));
 		
 		this.on('message', async (message) => {
-			if (!message.content.startsWith(this.prefix) || message.author.bot) return;
+			if (!message.content.startsWith(this.prefix)) return;
 			
 			const args: string[] = message.content.slice(this.prefix.length).trim().split(/ +/g);
 			const cmd: string | undefined = args.shift()?.toLowerCase();
@@ -107,29 +165,62 @@ export class ExtendedClient extends Client {
 			for (const [key, value] of this.commands) {
 				if (cmd === key) {
 					if (value) {
-						if (value.ownerOnly) {
-							if (!this.ownerIDS?.includes(message.author.id)) return;
-	
-							value.run(message, args);
+						let passable = true;
+
+                        if (value.ownerOnly) {
+                            if (!this.ownerIDS?.includes(message.author.id)) return passable = false;
+                        }
+
+                        if (value.cooldown) {
+							console.log(this.cooldown);
+                            if (!message.guild) return;
+                            if (typeof this.cooldown.get(message.guild.id) == 'undefined') return;
+
+                            let cooldown = this.cooldown.get(message.guild.id)?.[key];
+
+                            if (cooldown?.currentCooldown) {
+                                passable = false;
+                                value.cooldown.send?.(message, args, prettyms(cooldown.currentCooldown, {
+									verbose: true,
+								}));
+                            }
 						}
 						
 						if (value.requiresPermissions && value.requiresPermissions.permissions[0]) {
-							let passable: boolean | undefined = undefined;
+							let passableArray: boolean[] = [];
+							let scopePassable: boolean = true;
 
 							value.requiresPermissions.permissions.map(id => {
-								if (passable) return;
-								if (message.member?.permissions.has(id) == false) passable = false;
-								else passable = true;
+								if (!message.member?.permissions.has(id)) passableArray.push(false);
+								else passableArray.push(true);
 							});
-							
-							if (!passable && value.requiresPermissions.send) return value.requiresPermissions.send(message, args);
-							if (!passable && !value.requiresPermissions.send) return;
 
-							value.run(message, args);
+							passableArray.map(element => {
+								if (!element) scopePassable = false;
+							});
+
+							if (!scopePassable) {
+								passable = false;
+								value.requiresPermissions?.send?.(message, args);
+							}
 						}
 
-						if (!value.ownerOnly && ( !value.requiresPermissions?.permissions.length || !value.requiresPermissions) ) {
+						if (passable) {
 							value.run(message, args);
+
+							if (!message.guild) return;
+
+							const commands = this.cooldown.get(message.guild.id);
+							if (!commands) return;
+
+							const specificCommand = this.cooldown.get(message.guild.id)?.[key];
+							if (!specificCommand?.currentCooldown && specificCommand?.currentCooldown !== 0) return;
+
+							specificCommand.currentCooldown = specificCommand?.baseCooldown;
+
+							commands[key] = specificCommand;
+
+							this.cooldown.set(message.guild.id, commands);
 						}
 					}
 				} else {
@@ -139,30 +230,46 @@ export class ExtendedClient extends Client {
 
 					if (typeof cmd == 'string' && aliases.includes(cmd)) {
 						if (value) {
+							let passable = true;
+
 							if (value.ownerOnly) {
-								if (!this.ownerIDS?.includes(message.author.id)) return;
-		
-								value.run(message, args);
+								if (!this.ownerIDS?.includes(message.author.id)) return passable = false;
+							}
+	
+							if (value.cooldown) {
+								if (!message.guild) return;
+								if (typeof this.cooldown.get(message.guild.id) == 'undefined') return;
+	
+								let cooldown = this.cooldown.get(message.guild.id)?.[key];
+	
+								if (cooldown?.currentCooldown) {
+									passable = false;
+									value.cooldown.send?.(message, args, prettyms(cooldown.currentCooldown, {
+										verbose: true,
+									}));
+								}
 							}
 							
 							if (value.requiresPermissions && value.requiresPermissions.permissions[0]) {
-								let passable: boolean | undefined = undefined;
-								
+								let passableArray: boolean[] = [];
+								let scopePassable: boolean = true;
+	
 								value.requiresPermissions.permissions.map(id => {
-									if (passable) return;
-									if (message.member?.permissions.has(id) == false) passable = false;
-									else passable = true;
+									if (!message.member?.permissions.has(id)) passableArray.push(false);
+									else passableArray.push(true);
 								});
-								
-								if (!passable && value.requiresPermissions.send) return value.requiresPermissions.send(message, args);
-								if (!passable && !value.requiresPermissions.send) return;
 	
-								value.run(message, args);
+								passableArray.map(element => {
+									if (!element) scopePassable = false;
+								});
+	
+								if (!scopePassable) {
+									passable = false;
+									value.requiresPermissions?.send?.(message, args);
+								}
 							}
 	
-							if (!value.ownerOnly && ( !value.requiresPermissions?.permissions.length || !value.requiresPermissions) ) {
-								value.run(message, args);
-							}
+							if (passable) value.run(message, args);
 						}
 					}
 				}
@@ -202,7 +309,7 @@ export class ExtendedClient extends Client {
 	*/
 	
 	public initCommand(commandName: string, callback: CommandCallback, options?: CommandOptions): void {
-		if (!fs.existsSync(`${appRoot}/${commandName}`) && typeof require(`${appRoot}/${commandName}`) !== 'object') {
+		if (!fs.existsSync(`${appRoot}/${commandName}`)) {
 			const curObject = {
 				ownerOnly: options?.ownerOnly,
 				requiresPermissions: options?.requiresPermissions,
@@ -210,6 +317,8 @@ export class ExtendedClient extends Client {
 				category: options?.category,
 				description: options?.description,
 				usage: options?.usage,
+				restrictBot: options?.restrictBot,
+				cooldown: options?.cooldown,
 				run: callback,
 			};
 
@@ -225,9 +334,10 @@ export class ExtendedClient extends Client {
 				delete curObject.description;
 			} else if (typeof curObject.usage == 'undefined') {
 				delete curObject.usage;
+			} else if (typeof curObject.restrictBot == 'undefined') {
+				delete curObject.usage;
 			}
 			
-
 			this.commands.set(commandName, curObject);
 			if (alreadyEmitted.includes(commandName)) return;
 			this.emit('commandCreate', commandName, callback);

@@ -27,6 +27,12 @@ client.once('ready', () => {
                 message.channel.send(`Missing permission **${client.nodeToName('MANAGE_MESSAGES')}**`);
             }
         },
+        cooldown: {
+            cooldown: 4,
+            send: (message, args, time) => {
+                message.channel.send(`You need to wait **${time}** before this command can be run again.`)
+            }, 
+        },
         ownerOnly: false, // Default: false
         aliases: ['speak', 'echo'], // Default: []
         category: 'util', // Default: ''
@@ -77,6 +83,12 @@ module.exports = {
     requiresPermissions: {
         permissions: ['MANAGE_MESSAGES'],
         send: (message, _args) => message.channel.send('You do not have the permission `Manage Messages`.'),
+    },
+    cooldown: {
+        cooldown: 5000, // Cannot be below 150 (milliseconds)
+        send: (message, args, time) => {
+            message.channel.send(`You need to wait **${time}** before this command can be run again.`)
+        }, 
     },
     aliases: ['speak', 'echo'],
     run: (message, args) => {
