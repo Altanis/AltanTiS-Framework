@@ -79,11 +79,11 @@ export declare class ExtendedClient extends Client {
      */
     nodeToName(permissionNode: string): string;
     /**
-    * Initialize a command.
-    * @param commandName - The name for the command being created.
-    * @param callback - How the command runs when it's called.
-    * @param options - The options for the command.
-    */
+     * Initialize a command.
+     * @param commandName - The name for the command being created.
+     * @param callback - How the command runs when it's called.
+     * @param options - The options for the command.
+     */
     initCommand(commandName: string, callback: CommandCallback, options?: CommandOptions): void;
     /**
      * Get the names of every registered commmand.
